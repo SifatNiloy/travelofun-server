@@ -18,6 +18,7 @@ async function run() {
     try {
         await client.connect();
         const packageCollection = client.db('travelofun').collection('packages');
+        const orderCollection=client.db('travelofun').collection('order');
         app.get('/package', async (req, res) => {
             const query = {};
             const cursor = packageCollection.find(query);
@@ -42,6 +43,13 @@ async function run() {
             const id= req.params.id;
             const query= {_id:ObjectId(id)};
             const result= await packageCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        //order collection api
+        app.post('/order', async(req, res)=>{
+            const order= req.body;
+            const result=await orderCollection.insertOne(order);
             res.send(result);
         })
     }
