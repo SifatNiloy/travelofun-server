@@ -18,7 +18,8 @@ async function run() {
     try {
         await client.connect();
         const packageCollection = client.db('travelofun').collection('packages');
-        const orderCollection=client.db('travelofun').collection('order');
+        const orderCollection = client.db('travelofun').collection('order');
+
         app.get('/package', async (req, res) => {
             const query = {};
             const cursor = packageCollection.find(query);
@@ -32,33 +33,61 @@ async function run() {
             res.send(package);
         })
         //post 
-        app.post('/package', async(req, res)=>{
-            const newPackage=req.body;
-            const result= await packageCollection.insertOne(newPackage);
+        app.post('/package', async (req, res) => {
+            const newPackage = req.body;
+            const result = await packageCollection.insertOne(newPackage);
             res.send(result);
         })
 
+        //update status
+        app.put('/package/:id', async (req, res) => {
+            const id = req.params._id;
+            const order = req.body;
+            const filter = { _id: ObjectId(id) };
+            const options = { upsert: true };
+
+            const updateDoc = {
+                $set: {
+                    id: order._id,
+                    email: order.email,
+                    image: order.image,
+                    packagename: order.packagename,
+                    duration: order.duration,
+                    price: order.price,
+                    description: order.description,
+                    status: order.status,
+
+                }
+            };
+            const result = await orderCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+
+        })
+
         //delete
-        app.delete("/package/:id", async(req,res)=>{
-            const id= req.params.id;
-            const query= {_id:ObjectId(id)};
-            const result= await packageCollection.deleteOne(query);
+        app.delete("/package/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await packageCollection.deleteOne(query);
             res.send(result);
         })
 
         //order collection api
-        app.get('/order', async(req,res)=>{
-            const query={};
-            const cursor= orderCollection.find(query);
-            const orders=await cursor.toArray();
+        app.get('/order', async (req, res) => {
+            // const email=req.query.email;
+            const query = {};
+            const cursor = orderCollection.find(query);
+            const orders = await cursor.toArray();
             res.send(orders);
         })
 
-        app.post('/order', async(req, res)=>{
-            const order= req.body;
-            const result=await orderCollection.insertOne(order);
+        app.post('/order', async (req, res) => {
+            const order = req.body;
+            const result = await orderCollection.insertOne(order);
             res.send(result);
         })
+
+
     }
 
 
