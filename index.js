@@ -40,8 +40,20 @@ async function run() {
         })
 
         //update status
-        app.put('/package/:id', async (req, res) => {
-            const id = req.params._id;
+        app.get('/order', async (req, res) => {
+            const query = {};
+            const cursor = orderCollection.find(query);
+            const order = await cursor.toArray();
+            res.send(order);
+        })
+        app.get('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const order = await orderCollection.findOne(query);
+            res.send(order);
+        })
+        app.put('/order/:id', async (req, res) => {
+            const id = req.params.id;
             const order = req.body;
             const filter = { _id: ObjectId(id) };
             const options = { upsert: true };
@@ -50,11 +62,12 @@ async function run() {
                 $set: {
                     id: order._id,
                     email: order.email,
-                    image: order.image,
                     packagename: order.packagename,
-                    duration: order.duration,
-                    price: order.price,
+                    image: order.image,
                     description: order.description,
+                    price: order.price,
+                    duration: order.duration,
+                    packageId:order.packageId,
                     status: order.status,
 
                 }
