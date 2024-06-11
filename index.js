@@ -1,18 +1,24 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { MongoClient, ServerApiVersion } = require("mongodb");
+const asyncHandler = require("express-async-handler");
 require("dotenv").config();
-const port = process.env.PORT || 5000;
 
 const app = express();
+const port = process.env.PORT || 5000;
 
-//middleware
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-const uri =
-  `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.lse4v0n.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+// Validate environment variables
+const { DB_USER, DB_PASS, DB_NAME } = process.env;
+if (!DB_USER || !DB_PASS || !DB_NAME) {
+  console.error("Please set DB_USER, DB_PASS, and DB_NAME in your .env file");
+  process.exit(1);
+}
 
+const uri = `mongodb+srv://${DB_USER}:${DB_PASS}@cluster0.lse4v0n.mongodb.net/${DB_NAME}?retryWrites=true&w=majority&appName=Cluster0`;
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -20,115 +26,39 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
-async function run() {
+
+// Connect to MongoDB
+async function connectToDatabase() {
   try {
-    // await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
-    /////=============/////
-    const packageCollection = client.db("travelofun").collection("packages");
-    const orderCollection = client.db("travelofun").collection("order");
-
-    app.get("/package", async (req, res) => {
-      const query = {};
-      const cursor = packageCollection.find(query);
-      const packages = await cursor.toArray();
-      res.send(packages);
-    });
-    app.get("/package/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const package = await packageCollection.findOne(query);
-      res.send(package);
-    });
-    //post
-    app.post("/package", async (req, res) => {
-      const newPackage = req.body;
-      const result = await packageCollection.insertOne(newPackage);
-      res.send(result);
-    });
-
-    //update status
-    app.get("/order", async (req, res) => {
-      const query = {};
-      const cursor = orderCollection.find(query);
-      const order = await cursor.toArray();
-      res.send(order);
-    });
-    app.get("/order/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const order = await orderCollection.findOne(query);
-      res.send(order);
-    });
-    app.put("/order/:id", async (req, res) => {
-      const id = req.params.id;
-      const order = req.body;
-      const filter = { _id: ObjectId(id) };
-      const options = { upsert: true };
-
-      const updateDoc = {
-        $set: {
-          id: order._id,
-          email: order.email,
-          packagename: order.packagename,
-          image: order.image,
-          description: order.description,
-          price: order.price,
-          duration: order.duration,
-          packageId: order.packageId,
-          status: order.status,
-        },
-      };
-      const result = await orderCollection.updateOne(
-        filter,
-        updateDoc,
-        options
-      );
-      res.send(result);
-    });
-
-    //delete
-    app.delete("/package/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const result = await packageCollection.deleteOne(query);
-      res.send(result);
-    });
-    //delete order
-    app.delete("/order/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const result = await orderCollection.deleteOne(query);
-      res.send(result);
-    });
-
-    //order collection api
-    app.get("/order", async (req, res) => {
-      // const email=req.query.email;
-      const query = {};
-      const cursor = orderCollection.find(query);
-      const orders = await cursor.toArray();
-      res.send(orders);
-    });
-
-    app.post("/order", async (req, res) => {
-      const order = req.body;
-      const result = await orderCollection.insertOne(order);
-      res.send(result);
-    });
-  } finally {
+    await client.connect();
+    console.log("Connected to MongoDB successfully!");
+  } catch (error) {
+    console.error("Failed to connect to MongoDB", error);
+    process.exit(1);
   }
 }
-run().catch(console.dir);
 
+// Routes
+const packageRoutes = require("./routes/package");
+const orderRoutes = require("./routes/order");
+
+app.use("/package", packageRoutes);
+app.use("/order", orderRoutes);
+
+// Root route
 app.get("/", (req, res) => {
-  res.send("running travelofun server");
+  res.send("Running travelofun server");
 });
 
+// Start the server
 app.listen(port, () => {
-  console.log("listening to port", port);
+  console.log(`Listening on port ${port}`);
+  connectToDatabase();
+});
+
+// Handle graceful shutdown
+process.on("SIGINT", async () => {
+  await client.close();
+  console.log("MongoDB connection closed");
+  process.exit(0);
 });
